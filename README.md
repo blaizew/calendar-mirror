@@ -123,8 +123,10 @@ launchctl load "$OUT"
   `sync.log` and `launchd.err.log`.
 - **`ABORT — source read failed`:** the freebusy read failed (token expired or network); it
   correctly made no changes. Check `gws auth status`.
-- **Stray `download.html`:** `gws` emits a 0-byte file on empty/204 responses (e.g. deletes).
-  Harmless.
+- **Stray `download.html`:** `gws` writes a file for empty/204 responses (e.g. deletes) to the
+  cwd; under launchd (cwd `/`) that *fails* the call. Handled here: deletes pass
+  `--output /dev/null`, and the plist sets `WorkingDirectory`. If you call `gws` deletes
+  yourself, do the same or run from a writable dir.
 
 ## Files
 

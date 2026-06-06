@@ -160,7 +160,10 @@ def create_block(rfc_start, rfc_end):
 
 
 def delete_block(event_id):
-    gws(["events", "delete"], params={"calendarId": CFG["mirror_calendar"], "eventId": event_id, "sendUpdates": "none"})
+    # --output /dev/null: a delete returns an empty (204) body; without this, gws writes a
+    # stray "download.html" to the cwd, which fails under launchd (cwd=/ is not writable).
+    gws(["events", "delete", "--output", "/dev/null"],
+        params={"calendarId": CFG["mirror_calendar"], "eventId": event_id, "sendUpdates": "none"})
 
 
 # ---- Main ----------------------------------------------------------------
