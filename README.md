@@ -1,4 +1,4 @@
-# availability-mirror
+# calendar-mirror
 
 One-way sync of your **personal calendar's busy time → a work calendar**, so colleagues
 can see your real availability and book around it — **without** ever exposing what your
@@ -103,8 +103,8 @@ while you're logged into your Mac.
 ```bash
 DIR="$(pwd)"                                  # run from the repo dir
 PY="$(command -v python3)"
-OUT="$HOME/Library/LaunchAgents/availability-mirror.plist"
-sed -e "s|__DIR__|$DIR|g" -e "s|__PYTHON__|$PY|g" availability-mirror.plist.template > "$OUT"
+OUT="$HOME/Library/LaunchAgents/calendar-mirror.plist"
+sed -e "s|__DIR__|$DIR|g" -e "s|__PYTHON__|$PY|g" calendar-mirror.plist.template > "$OUT"
 launchctl load "$OUT"
 ```
 
@@ -130,7 +130,7 @@ launchctl load "$OUT"
 
 - `mirror.py` — the reconciler (dry-run by default; `--apply` to write).
 - `config.sample.json` — copy to `config.json` (gitignored) and fill in.
-- `availability-mirror.plist.template` — LaunchAgent template (`__DIR__` / `__PYTHON__`).
+- `calendar-mirror.plist.template` — LaunchAgent template (`__DIR__` / `__PYTHON__`).
 
 ## License
 

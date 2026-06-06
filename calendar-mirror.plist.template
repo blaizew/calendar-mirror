@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- LaunchAgent template. Render with:
        sed -e "s|__DIR__|$(pwd)|g" -e "s|__PYTHON__|$(command -v python3)|g" \
-         availability-mirror.plist.template > ~/Library/LaunchAgents/availability-mirror.plist
-     then: launchctl load ~/Library/LaunchAgents/availability-mirror.plist -->
+         calendar-mirror.plist.template > ~/Library/LaunchAgents/calendar-mirror.plist
+     then: launchctl load ~/Library/LaunchAgents/calendar-mirror.plist -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.availability-mirror</string>
+    <string>com.calendar-mirror</string>
 
     <key>ProgramArguments</key>
     <array>

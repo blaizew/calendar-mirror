@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-availability-mirror — one-way sync of a personal calendar's busy time → a work calendar.
+calendar-mirror — one-way sync of a personal calendar's busy time → a work calendar.
 
 Reads merged free/busy from a SOURCE calendar (via an intermediary Google account that
 has free/busy access to it) and reconciles a set of generic block events on that
