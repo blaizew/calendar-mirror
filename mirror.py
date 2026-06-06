@@ -200,7 +200,7 @@ def main():
     try:
         source = read_source(time_min, time_max)
     except Exception as e:
-        log(f"[{mode}] ABORT — source read failed, no changes made: {e}")
+        log(f"[{mode}] ABORT: source read failed, no changes made: {e}")
         if apply:
             write_state("abort", error=str(e))
         sys.exit(1)
