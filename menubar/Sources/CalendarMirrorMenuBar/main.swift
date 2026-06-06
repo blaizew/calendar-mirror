@@ -127,10 +127,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func symbolName() -> String {
+        // Always a calendar glyph (so it's recognizable as calendar-mirror); the badge + color
+        // convey health.
         switch health {
-        case .healthy: return "checkmark.circle.fill"
-        case .stale:   return "clock.badge.questionmark"
-        case .error:   return "exclamationmark.triangle.fill"
+        case .healthy: return "calendar.badge.checkmark"
+        case .stale:   return "calendar.badge.clock"
+        case .error:   return "calendar.badge.exclamationmark"
         case .unknown: return "calendar"
         }
     }
