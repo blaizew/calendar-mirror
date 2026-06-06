@@ -112,6 +112,21 @@ into your Mac (it can't run with the laptop shut down or logged out).
 - **Teardown:** `./uninstall.sh`. To also remove the blocks it made, delete every event with
   the configured `event_name` + private tag on the intermediary's calendar.
 
+## Menu-bar status app (optional, macOS)
+
+A tiny AppKit menu-bar indicator (`menubar/`) shows the sync job's health at a glance — no
+third-party software, no Dock icon. `install.sh` builds it (`swift build -c release`) and
+registers it as its own auto-starting, keep-alive LaunchAgent (`com.calendar-mirror.menubar`).
+
+- 🟢 **Healthy** — last successful run within ~3× the interval
+- 🟡 **Stale** — no recent run (Mac was asleep, or the sync job is stopped)
+- 🔴 **Error** — last run aborted (e.g., token expired), or the sync job isn't scheduled
+
+The dropdown shows last-sync-ago + blocks mirrored, with **Sync now**, **Open logs**, **Quit**.
+It's a read-only viewer: it reads `state.json` (a heartbeat `mirror.py` overwrites every run)
+and `launchctl` status — it never touches the calendar itself. Requires a Swift toolchain
+(Xcode or Command Line Tools). `uninstall.sh` removes it along with the sync job.
+
 ## Troubleshooting
 
 - **Blocks not appearing on the work calendar:** confirm auto-add invitations is enabled
@@ -131,8 +146,10 @@ into your Mac (it can't run with the laptop shut down or logged out).
 
 - `mirror.py` — the reconciler (dry-run by default; `--apply` to write).
 - `config.sample.json` — copy to `config.json` (gitignored) and fill in.
-- `install.sh` / `uninstall.sh` — register / remove the launchd job (auto-starts at login).
-- `calendar-mirror.plist.template` — LaunchAgent template (`__DIR__` / `__PYTHON__` / `__INTERVAL__`).
+- `install.sh` / `uninstall.sh` — register / remove the launchd jobs (sync + menu-bar; auto-start at login).
+- `calendar-mirror.plist.template` — sync LaunchAgent template (`__DIR__` / `__PYTHON__` / `__INTERVAL__`).
+- `com.calendar-mirror.menubar.plist.template` — menu-bar app LaunchAgent template.
+- `menubar/` — Swift package for the optional menu-bar status app.
 
 ## License
 

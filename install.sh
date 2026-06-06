@@ -18,5 +18,19 @@ launchctl unload "$OUT" 2>/dev/null || true
 launchctl load -w "$OUT"
 
 echo "Installed $LABEL — runs every ${INTERVAL}s, auto-starts at login."
+
+# --- menu-bar status app ---
+echo "Building menu-bar app (swift build -c release)..."
+( cd "$DIR/menubar" && swift build -c release )
+BIN="$DIR/menubar/.build/release/CalendarMirrorMenuBar"
+MB_LABEL="com.calendar-mirror.menubar"
+MB_OUT="$HOME/Library/LaunchAgents/${MB_LABEL}.plist"
+sed -e "s|__BINARY__|$BIN|g" -e "s|__DIR__|$DIR|g" \
+  "$DIR/com.calendar-mirror.menubar.plist.template" > "$MB_OUT"
+launchctl unload "$MB_OUT" 2>/dev/null || true
+launchctl load -w "$MB_OUT"
+echo "Installed $MB_LABEL — menu-bar icon, auto-starts at login."
+
+echo ""
 echo "Plist: $OUT"
 echo "Logs:  $DIR/sync.log  (changes only)  |  $DIR/launchd.err.log (errors)"

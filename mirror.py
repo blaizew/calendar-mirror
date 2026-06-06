@@ -33,6 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "config.json"
 LOG_FILE = HERE / "sync.log"
+STATE_FILE = HERE / "state.json"  # heartbeat: overwritten every apply run (for the menu-bar app)
 
 DEFAULTS = {
     "gws_path": "gws",
@@ -178,6 +179,16 @@ def log(msg):
         pass
 
 
+def write_state(status, **fields):
+    """Overwrite state.json — the heartbeat the menu-bar app reads (apply runs only)."""
+    data = {"last_run": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "interval_seconds": CFG["interval_seconds"], "status": status, **fields}
+    try:
+        STATE_FILE.write_text(json.dumps(data, indent=2))
+    except OSError:
+        pass
+
+
 def main():
     if "--print-interval" in sys.argv[1:]:
         print(CFG["interval_seconds"])  # used by install.sh to render the plist StartInterval
@@ -190,6 +201,8 @@ def main():
         source = read_source(time_min, time_max)
     except Exception as e:
         log(f"[{mode}] ABORT — source read failed, no changes made: {e}")
+        if apply:
+            write_state("abort", error=str(e))
         sys.exit(1)
 
     mirror = read_mirror(time_min, time_max)
@@ -206,6 +219,8 @@ def main():
     unchanged = len(source_keys & mirror_keys)
 
     if not to_create and not to_delete:
+        if apply:
+            write_state("ok", mirrored=len(source_keys), created=0, deleted=0)
         return  # in sync — log nothing; logs stay a changelog of real changes only
 
     log(f"[{mode}] window {time_min[:10]}..{time_max[:10]} | "
@@ -224,6 +239,8 @@ def main():
         log(f"[{mode}] {'deleted' if apply else 'would delete'} block id={event_id}")
 
     log(f"[{mode}] done.")
+    if apply:
+        write_state("ok", mirrored=len(source_keys), created=len(to_create), deleted=len(to_delete))
 
 
 if __name__ == "__main__":
