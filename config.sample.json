@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy this file to config.json (gitignored) and fill in your values. Only source_calendar and attendee_calendar are required; the rest have sensible defaults.",
+  "gws_path": "~/path/to/gws",
+  "source_calendar": "you@personal.example.com",
+  "mirror_calendar": "primary",
+  "attendee_calendar": "you@work.example.com",
+  "block_title": "Personal",
+  "window_days": 30,
+  "tag_key": "mirror",
+  "tag_value": "personal-availability"
+}

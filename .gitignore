@@ -1,0 +1,13 @@
+# Real config (identifying calendar addresses) — only config.sample.json is committed
+config.json
+
+# Run logs
+sync.log
+launchd.out.log
+launchd.err.log
+
+# Rendered LaunchAgent (contains absolute home path) — only the template is committed
+*.plist
+
+# gws stray artifact on empty/204 responses
+download.html

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent template. Render with:
+       sed -e "s|__DIR__|$(pwd)|g" -e "s|__PYTHON__|$(command -v python3)|g" \
+         availability-mirror.plist.template > ~/Library/LaunchAgents/availability-mirror.plist
+     then: launchctl load ~/Library/LaunchAgents/availability-mirror.plist -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.availability-mirror</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON__</string>
+        <string>__DIR__/mirror.py</string>
+        <string>--apply</string>
+    </array>
+
+    <!-- Run every 5 minutes (seconds) -->
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <!-- Also run once at load -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__DIR__/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__DIR__/launchd.err.log</string>
+</dict>
+</plist>
