@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- LaunchAgent template. Render with:
-       sed -e "s|__DIR__|$(pwd)|g" -e "s|__PYTHON__|$(command -v python3)|g" \
-         calendar-mirror.plist.template > ~/Library/LaunchAgents/calendar-mirror.plist
-     then: launchctl load ~/Library/LaunchAgents/calendar-mirror.plist -->
+<!-- LaunchAgent template. Placeholders: __PYTHON__ __DIR__ __INTERVAL__
+     Run ./install.sh to render this (interval comes from config.json) and load it. -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -20,9 +18,9 @@
     <key>WorkingDirectory</key>
     <string>__DIR__</string>
 
-    <!-- Run every 5 minutes (seconds) -->
+    <!-- Run interval in seconds (rendered from config.json's interval_seconds by install.sh) -->
     <key>StartInterval</key>
-    <integer>300</integer>
+    <integer>__INTERVAL__</integer>
 
     <!-- Also run once at load -->
     <key>RunAtLoad</key>

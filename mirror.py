@@ -37,7 +37,8 @@ LOG_FILE = HERE / "sync.log"
 DEFAULTS = {
     "gws_path": "gws",
     "mirror_calendar": "primary",
-    "block_title": "Personal",
+    "event_name": "Personal",
+    "interval_seconds": 60,
     "window_days": 30,
     "tag_key": "mirror",
     "tag_value": "personal-availability",
@@ -129,7 +130,7 @@ def read_mirror(time_min, time_max):
     out = {}
     for ev in (data or {}).get("items", []):
         # Belt-and-suspenders: require BOTH the tag (already filtered) AND the title.
-        if ev.get("summary") != CFG["block_title"]:
+        if ev.get("summary") != CFG["event_name"]:
             continue
         priv = ev.get("extendedProperties", {}).get("private", {})
         if priv.get(CFG["tag_key"]) != CFG["tag_value"]:
@@ -148,7 +149,7 @@ def create_block(rfc_start, rfc_end):
         ["events", "insert"],
         params={"calendarId": CFG["mirror_calendar"], "sendUpdates": "none"},
         body={
-            "summary": CFG["block_title"],
+            "summary": CFG["event_name"],
             "start": {"dateTime": rfc_start},
             "end": {"dateTime": rfc_end},
             "attendees": [{"email": CFG["attendee_calendar"]}],
@@ -178,6 +179,9 @@ def log(msg):
 
 
 def main():
+    if "--print-interval" in sys.argv[1:]:
+        print(CFG["interval_seconds"])  # used by install.sh to render the plist StartInterval
+        return
     apply = "--apply" in sys.argv[1:]
     mode = "APPLY" if apply else "DRY-RUN"
     time_min, time_max = window()
@@ -201,13 +205,12 @@ def main():
             to_delete.extend(ids[1:])    # de-dupe accidental duplicates
     unchanged = len(source_keys & mirror_keys)
 
+    if not to_create and not to_delete:
+        return  # in sync — log nothing; logs stay a changelog of real changes only
+
     log(f"[{mode}] window {time_min[:10]}..{time_max[:10]} | "
         f"source={len(source_keys)} mirror={len(mirror_keys)} | "
         f"create={len(to_create)} delete={len(to_delete)} unchanged={unchanged}")
-
-    if not to_create and not to_delete:
-        log(f"[{mode}] in sync — nothing to do.")
-        return
 
     for key in sorted(to_create):
         rfc_start, rfc_end = source[key]

@@ -4,7 +4,8 @@
   "source_calendar": "you@personal.example.com",
   "mirror_calendar": "primary",
   "attendee_calendar": "you@work.example.com",
-  "block_title": "Personal",
+  "event_name": "Personal",
+  "interval_seconds": 60,
   "window_days": 30,
   "tag_key": "mirror",
   "tag_value": "personal-availability"

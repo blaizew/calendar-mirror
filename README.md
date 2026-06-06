@@ -78,7 +78,8 @@ cadence generates no churn. All writes use `sendUpdates=none`, so even when some
 | `attendee_calendar` | — | work calendar id (invited to each block) |
 | `gws_path` | `gws` | path to the `gws` binary (default assumes it's on `PATH`) |
 | `mirror_calendar` | `primary` | which of the intermediary's calendars holds the blocks |
-| `block_title` | `Personal` | block title colleagues will see |
+| `event_name` | `Personal` | block title colleagues will see |
+| `interval_seconds` | `60` | how often the launchd job runs (applied by `install.sh`) |
 | `window_days` | `30` | rolling look-ahead window |
 | `tag_key` / `tag_value` | `mirror` / `personal-availability` | private tag used to identify our blocks |
 
@@ -92,26 +93,24 @@ python3 mirror.py
 python3 mirror.py --apply
 ```
 
-Each run appends a summary line to `sync.log`.
+Logging is **changelog-only**: a run that finds nothing changed writes nothing. `sync.log`
+records only actual creates/deletes (and aborts), so it stays a clean history of real edits.
 
 ## Scheduling (macOS launchd)
 
-A **LaunchAgent** (user session, `~/Library/LaunchAgents/`) runs `--apply` on a timer — not
-a system daemon — so it can read the `gws` OAuth token from the login keychain. It only runs
-while you're logged into your Mac.
+A **LaunchAgent** (user session, `~/Library/LaunchAgents/`) runs `--apply` on a timer — not a
+system daemon — so it can read the `gws` OAuth token from the login keychain. Once installed it
+**auto-starts at every login**; you never start it manually. It runs only while you're logged
+into your Mac (it can't run with the laptop shut down or logged out).
 
 ```bash
-DIR="$(pwd)"                                  # run from the repo dir
-PY="$(command -v python3)"
-OUT="$HOME/Library/LaunchAgents/calendar-mirror.plist"
-sed -e "s|__DIR__|$DIR|g" -e "s|__PYTHON__|$PY|g" calendar-mirror.plist.template > "$OUT"
-launchctl load "$OUT"
+./install.sh      # renders the plist (interval from config.json) and loads it
+./uninstall.sh    # stops and removes it (leaves existing blocks on the calendar)
 ```
 
-- **Change cadence:** edit `StartInterval` (seconds) in the installed plist, then
-  `launchctl unload "$OUT" && launchctl load "$OUT"`.
-- **Teardown:** `launchctl unload "$OUT" && rm "$OUT"`. To also remove the blocks it made,
-  delete every event with the configured title + private tag on the intermediary's calendar.
+- **Change cadence:** edit `interval_seconds` in `config.json`, then re-run `./install.sh`.
+- **Teardown:** `./uninstall.sh`. To also remove the blocks it made, delete every event with
+  the configured `event_name` + private tag on the intermediary's calendar.
 
 ## Troubleshooting
 
@@ -132,7 +131,8 @@ launchctl load "$OUT"
 
 - `mirror.py` — the reconciler (dry-run by default; `--apply` to write).
 - `config.sample.json` — copy to `config.json` (gitignored) and fill in.
-- `calendar-mirror.plist.template` — LaunchAgent template (`__DIR__` / `__PYTHON__`).
+- `install.sh` / `uninstall.sh` — register / remove the launchd job (auto-starts at login).
+- `calendar-mirror.plist.template` — LaunchAgent template (`__DIR__` / `__PYTHON__` / `__INTERVAL__`).
 
 ## License
 
