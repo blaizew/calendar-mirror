@@ -143,10 +143,11 @@ Command Line Tools). `uninstall.sh` removes it along with the sync job.
   `launchd.err.log`.
 - **`ABORT: source read failed`:** the freebusy read failed (token expired or network), and it
   correctly made no changes. Check `gws auth status`.
-- **Stray `download.html`:** `gws` writes a file for empty/204 responses (like deletes) to the
-  cwd, and under launchd (cwd `/`) that fails the call. Handled here: deletes pass
-  `--output /dev/null` and the plist sets `WorkingDirectory`. If you call `gws` deletes yourself,
-  do the same or run from a writable directory.
+- **Stray `download.html`:** `gws` writes a file for empty/204 responses (like deletes) to its
+  working directory. The script runs `gws` with cwd pinned to the project folder, so that file
+  lands here (gitignored) instead of failing under launchd (whose cwd is `/`). Note: `gws`
+  rejects `--output` paths outside the cwd, so redirecting to `/dev/null` does not work;
+  controlling cwd is the fix.
 
 ## Files
 

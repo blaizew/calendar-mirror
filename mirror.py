@@ -70,7 +70,11 @@ def gws(args, body=None, params=None):
         cmd += ["--params", json.dumps(params)]
     if body is not None:
         cmd += ["--json", json.dumps(body)]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    # Run with cwd=HERE (a writable dir we own): a delete returns an empty body and gws writes a
+    # stray "download.html" to its cwd. Pinning cwd here makes that land in the project dir
+    # (gitignored) instead of failing under launchd, whose cwd is "/". (gws rejects --output
+    # paths outside the cwd, so controlling cwd — not --output /dev/null — is the fix.)
+    res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(HERE))
     if res.returncode != 0:
         raise RuntimeError(f"gws failed ({res.returncode}): {res.stderr.strip() or res.stdout.strip()}")
     out = res.stdout.strip()
@@ -162,9 +166,7 @@ def create_block(rfc_start, rfc_end):
 
 
 def delete_block(event_id):
-    # --output /dev/null: a delete returns an empty (204) body; without this, gws writes a
-    # stray "download.html" to the cwd, which fails under launchd (cwd=/ is not writable).
-    gws(["events", "delete", "--output", "/dev/null"],
+    gws(["events", "delete"],
         params={"calendarId": CFG["mirror_calendar"], "eventId": event_id, "sendUpdates": "none"})
 
 
