@@ -87,6 +87,7 @@ most moving pieces. The summary below is just the shape of it.
 | `event_name` | `Personal` | block title colleagues will see |
 | `interval_seconds` | `60` | how often the launchd job runs (applied by `install.sh`) |
 | `window_days` | `30` | rolling look-ahead window |
+| `prune_past_blocks` | `false` | when `true`, also delete blocks dated before today so the past calendar stays uncluttered (only forward-looking blocks remain). When `false`, past blocks are left untouched. |
 | `tag_key` / `tag_value` | `mirror` / `personal-availability` | private tag used to identify our blocks |
 
 ## Usage

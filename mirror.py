@@ -41,6 +41,7 @@ DEFAULTS = {
     "event_name": "Personal",
     "interval_seconds": 60,
     "window_days": 30,
+    "prune_past_blocks": False,
     "tag_key": "mirror",
     "tag_value": "personal-availability",
 }
@@ -175,8 +176,15 @@ def create_block(rfc_start, rfc_end):
 
 
 def delete_block(event_id):
-    gws(["events", "delete"],
-        params={"calendarId": CFG["mirror_calendar"], "eventId": event_id, "sendUpdates": "none"})
+    try:
+        gws(["events", "delete"],
+            params={"calendarId": CFG["mirror_calendar"], "eventId": event_id, "sendUpdates": "none"})
+    except RuntimeError as e:
+        # Idempotent: the event may already be gone (a concurrent run deleted it, or the list
+        # was stale). Treat 404/410 "not found / already deleted" as success; re-raise anything else.
+        msg = str(e).lower()
+        if not ("deleted" in msg or "not found" in msg or "404" in msg or "410" in msg):
+            raise
     (HERE / "download.html").unlink(missing_ok=True)  # tidy up gws's empty-response artifact
 
 
@@ -217,7 +225,14 @@ def main():
             write_state("abort", error=str(e))
         sys.exit(1)
 
-    mirror = read_mirror(time_min, time_max)
+    # Source covers the forward window. Mirror is normally listed over that same window, so
+    # blocks on past days (below the window) are never seen and linger. With prune_past_blocks
+    # on, list the mirror far back instead: those past blocks then show up in `mirror` but not in
+    # `source`, so the existing diff deletes them. No separate code path.
+    mirror_min = time_min
+    if CFG["prune_past_blocks"]:
+        mirror_min = (datetime.fromisoformat(time_min) - timedelta(days=3650)).isoformat()
+    mirror = read_mirror(mirror_min, time_max)
     source_keys = set(source.keys())
     mirror_keys = set(mirror.keys())
 
