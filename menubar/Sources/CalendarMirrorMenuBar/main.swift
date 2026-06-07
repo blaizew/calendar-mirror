@@ -24,11 +24,14 @@ func mirrorDirectory() -> URL {
 
 enum Health { case healthy, stale, error, unknown }
 
+// Run a command with its arguments passed as a literal array (no shell). args[0] is the
+// program (resolved on PATH via /usr/bin/env); the rest are argv, so nothing is ever
+// interpreted by a shell.
 @discardableResult
-func shell(_ args: [String]) -> (Int32, String) {
+func run(_ args: [String]) -> (Int32, String) {
     let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/bin/sh")
-    p.arguments = ["-c", args.joined(separator: " ")]
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    p.arguments = args
     let pipe = Pipe()
     p.standardOutput = pipe
     p.standardError = pipe
@@ -69,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var logURL: URL { dir.appendingPathComponent("sync.log") }
 
     func isLoaded() -> Bool {
-        shell(["launchctl", "list", LABEL]).0 == 0
+        run(["launchctl", "list", LABEL]).0 == 0
     }
 
     func refresh() {
@@ -204,7 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func syncNow() {
         let uid = getuid()
-        _ = shell(["launchctl", "kickstart", "-k", "gui/\(uid)/\(LABEL)"])
+        _ = run(["launchctl", "kickstart", "-k", "gui/\(uid)/\(LABEL)"])
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in self?.refresh() }
     }
 

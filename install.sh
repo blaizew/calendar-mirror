@@ -10,6 +10,13 @@ INTERVAL="$("$PY" "$DIR/mirror.py" --print-interval)"
 LABEL="com.calendar-mirror"
 OUT="$HOME/Library/LaunchAgents/${LABEL}.plist"
 
+# Guard the values we substitute into the plist via sed (delimiter is "|").
+# These are local paths/ints, but a stray "|", tab, or newline would yield a malformed plist.
+[[ "$INTERVAL" =~ ^[0-9]+$ ]] || { echo "Error: interval_seconds must be a positive integer (got '$INTERVAL'); fix config.json." >&2; exit 1; }
+case "$DIR$PY" in
+  *'|'* | *[$'\t\n']* ) echo "Error: install path contains an unsupported character (| tab or newline); cannot render the plist safely." >&2; exit 1 ;;
+esac
+
 mkdir -p "$HOME/Library/LaunchAgents"
 sed -e "s|__DIR__|$DIR|g" -e "s|__PYTHON__|$PY|g" -e "s|__INTERVAL__|$INTERVAL|g" \
   "$DIR/calendar-mirror.plist.template" > "$OUT"

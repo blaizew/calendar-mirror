@@ -56,6 +56,15 @@ def load_config():
     if missing:
         sys.exit(f"config.json is missing required keys: {', '.join(missing)}")
     cfg["gws_path"] = str(Path(cfg["gws_path"]).expanduser())
+    # Coerce/validate numeric settings — interval_seconds is rendered into the launchd plist,
+    # so a non-integer would produce a malformed plist downstream.
+    for k in ("interval_seconds", "window_days"):
+        try:
+            cfg[k] = int(cfg[k])
+        except (TypeError, ValueError):
+            sys.exit(f"config.json: {k} must be an integer (got {cfg[k]!r})")
+        if cfg[k] <= 0:
+            sys.exit(f"config.json: {k} must be a positive integer (got {cfg[k]})")
     return cfg
 
 
