@@ -168,6 +168,7 @@ def create_block(rfc_start, rfc_end):
 def delete_block(event_id):
     gws(["events", "delete"],
         params={"calendarId": CFG["mirror_calendar"], "eventId": event_id, "sendUpdates": "none"})
+    (HERE / "download.html").unlink(missing_ok=True)  # tidy up gws's empty-response artifact
 
 
 # ---- Main ----------------------------------------------------------------
