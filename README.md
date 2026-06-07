@@ -80,8 +80,8 @@ most moving pieces. The summary below is just the shape of it.
 
 | key | default | meaning |
 |---|---|---|
-| `source_calendar` | *required* | personal calendar id (free/busy source) |
-| `attendee_calendar` | *required* | work calendar id (invited to each block) |
+| `source_calendar` | — | personal calendar id (free/busy source) |
+| `attendee_calendar` | — | work calendar id (invited to each block) |
 | `gws_path` | `gws` | path to the `gws` binary (default assumes it's on `PATH`) |
 | `mirror_calendar` | `primary` | which of the intermediary's calendars holds the blocks |
 | `event_name` | `Personal` | block title colleagues will see |
