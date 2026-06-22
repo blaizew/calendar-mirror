@@ -59,6 +59,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var statusLine = "Loading…"
     var detailLine = ""
     var lastError = ""
+    var authExpired = false
+    var transientLine: String?  // shown once (e.g. "Copied"), cleared on next refresh
+
+    // OAuth consent screen for the gws project (where you publish the app to stop the
+    // ~7-day token expiry). Project id is read from gws's own config when available.
+    let consentScreenURL = "https://console.cloud.google.com/auth/clients"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let menu = NSMenu()
@@ -70,6 +76,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     var stateURL: URL { dir.appendingPathComponent("state.json") }
     var logURL: URL { dir.appendingPathComponent("sync.log") }
+    var configURL: URL { dir.appendingPathComponent("config.json") }
+
+    // Path to the gws binary, from config.json (a leading ~ expanded), defaulting to "gws".
+    // Mirrors how mirror.py resolves gws_path, so the copied command actually runs.
+    func gwsPath() -> String {
+        var path = "gws"
+        if let data = try? Data(contentsOf: configURL),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let p = obj["gws_path"] as? String, !p.isEmpty {
+            path = p
+        }
+        if path == "~" { return FileManager.default.homeDirectoryForCurrentUser.path }
+        if path.hasPrefix("~/") {
+            return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(String(path.dropFirst(2))).path
+        }
+        return path
+    }
+
+    func reauthCommand() -> String {
+        "\(gwsPath()) auth login --scopes https://www.googleapis.com/auth/calendar"
+    }
 
     func isLoaded() -> Bool {
         run(["launchctl", "list", LABEL]).0 == 0
@@ -81,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var lastRun: Date? = nil
         var status = ""
         lastError = ""
+        transientLine = nil
 
         if let data = try? Data(contentsOf: stateURL),
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -98,9 +126,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let loaded = isLoaded()
 
+        // Token-expiry is the one error a user can fix from here. Match ONLY the expired/revoked
+        // signature, not gws's generic auth-category errors (e.g. missing root CAs), which
+        // re-auth won't fix — those keep the plain error display.
+        let lowerErr = lastError.lowercased()
+        authExpired = status == "abort"
+            && (lowerErr.contains("invalid_grant") || lowerErr.contains("expired or revoked"))
+
         if status == "abort" {
             health = .error
-            statusLine = "Error — last sync failed"
+            statusLine = authExpired ? "Sign-in expired — sync paused" : "Error — last sync failed"
         } else if let lr = lastRun {
             let age = Date().timeIntervalSince(lr)
             let staleAfter = max(180.0, interval * 3.0)
@@ -173,7 +208,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch health {
         case .healthy: dot = "🟢"; case .stale: dot = "🟡"; case .error: dot = "🔴"; case .unknown: dot = "⚪️"
         }
-        let st = NSMenuItem(title: "\(dot) \(statusLine)", action: nil, keyEquivalent: "")
+        let line = transientLine ?? "\(dot) \(statusLine)"
+        let st = NSMenuItem(title: line, action: nil, keyEquivalent: "")
         st.isEnabled = false
         menu.addItem(st)
 
@@ -182,22 +218,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             d.isEnabled = false
             menu.addItem(d)
         }
-        if health == .error && !lastError.isEmpty {
+        // For the expired-token case the human-readable status line already says it; suppress the
+        // raw gws stderr (it's long and redundant) and offer the fix instead. Other errors still
+        // show the raw message so nothing is hidden.
+        if health == .error && !authExpired && !lastError.isEmpty {
             let e = NSMenuItem(title: "   \(lastError)", action: nil, keyEquivalent: "")
             e.isEnabled = false
             menu.addItem(e)
         }
 
+        if authExpired {
+            menu.addItem(.separator())
+            let copy = NSMenuItem(title: "Copy re-auth command", action: #selector(copyReauthCommand), keyEquivalent: "c")
+            copy.target = self; menu.addItem(copy)
+            let fix = NSMenuItem(title: "How to fix…", action: #selector(showFixInstructions), keyEquivalent: "")
+            fix.target = self; menu.addItem(fix)
+        }
+
         menu.addItem(.separator())
 
+        // While sign-in is expired, syncing and refreshing are dead ends: "Sync now" would just
+        // kickstart launchd into the same auth abort, and there's nothing new to re-read until the
+        // user re-auths. Grey both out (the 20s timer still recovers the menu once a sync succeeds,
+        // re-enabling them automatically). "Copy re-auth command" / "How to fix…" stay active.
         let sync = NSMenuItem(title: "Sync now", action: #selector(syncNow), keyEquivalent: "s")
-        sync.target = self; menu.addItem(sync)
+        sync.target = self; sync.isEnabled = !authExpired; menu.addItem(sync)
 
         let logs = NSMenuItem(title: "Open logs", action: #selector(openLogs), keyEquivalent: "l")
         logs.target = self; menu.addItem(logs)
 
         let ref = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
-        ref.target = self; menu.addItem(ref)
+        ref.target = self; ref.isEnabled = !authExpired; menu.addItem(ref)
 
         menu.addItem(.separator())
 
@@ -213,6 +264,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func openLogs() {
         NSWorkspace.shared.open(FileManager.default.fileExists(atPath: logURL.path) ? logURL : dir)
+    }
+
+    func copyToClipboard(_ s: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(s, forType: .string)
+    }
+
+    @objc func copyReauthCommand() {
+        copyToClipboard(reauthCommand())
+        transientLine = "✅ Copied — paste into Terminal"
+        rebuildMenu()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self = self, self.transientLine != nil else { return }
+            self.transientLine = nil
+            self.rebuildMenu()
+        }
+    }
+
+    @objc func showFixInstructions() {
+        let alert = NSAlert()
+        alert.messageText = "Calendar Mirror sign-in expired"
+        alert.informativeText = """
+        The Google sign-in for the sync expired, so it has paused. No calendar changes are \
+        being made until you sign in again.
+
+        Fix now (about a minute):
+        1. Click “Copy command”, paste it into Terminal, and run it.
+        2. In the browser: pick the intermediary account, then Advanced → “Go to … (unsafe)” → Allow.
+        The next sync turns green automatically — no restart needed.
+
+        Stop this from recurring:
+        This happens every ~7 days while the OAuth app is in “Testing” mode. Publish it once \
+        (Google Cloud → APIs & Services → OAuth consent screen → Publishing status → Publish app) \
+        and the sign-in stops expiring.
+        """
+        alert.addButton(withTitle: "Copy command")
+        alert.addButton(withTitle: "Open Google Cloud console")
+        alert.addButton(withTitle: "Close")
+        // Bring the (accessory) app forward so the modal is visible and focused.
+        NSApp.activate(ignoringOtherApps: true)
+        let resp = alert.runModal()
+        if resp == .alertFirstButtonReturn {
+            copyToClipboard(reauthCommand())
+        } else if resp == .alertSecondButtonReturn {
+            if let url = URL(string: consentScreenURL) { NSWorkspace.shared.open(url) }
+        }
     }
 
     @objc func refreshNow() { refresh() }
