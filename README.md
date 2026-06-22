@@ -153,6 +153,16 @@ Command Line Tools). `uninstall.sh` removes it along with the sync job.
   ```bash
   rm ~/.config/gws/token_cache.json
   ```
+- **A multi-day "Busy" event swallows every event under it into one block:** `freebusy.query`
+  returns the *merged union* of your busy time, not individual events. A multi-day event marked
+  **Busy** (e.g. a trip or a "holder" spanning several days) covers the whole span, so every other
+  busy event overlapping it is absorbed into that one interval before the mirror ever sees it — and
+  the mirror can only reproduce a single block over the entire range. Colleagues then see one
+  undifferentiated busy block instead of your real per-event commitments. Fix it on the *event*
+  side: set the holder's availability to **Free** (or decline it) so it stays out of free/busy
+  entirely, and your underlying events surface as individual blocks again. This is inherent to
+  free/busy access — the mirror has `freeBusyReader` only and never sees event details to break a
+  merged range apart.
 - **Stray `download.html`:** `gws` writes a file for empty/204 responses (like deletes) to its
   working directory. The script runs `gws` with cwd pinned to the project folder, so that file
   lands here (gitignored) instead of failing under launchd (whose cwd is `/`). Note: `gws`
