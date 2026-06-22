@@ -144,6 +144,15 @@ Command Line Tools). `uninstall.sh` removes it along with the sync job.
   `launchd.err.log`.
 - **`ABORT: source read failed`:** the freebusy read failed (token expired or network), and it
   correctly made no changes. Check `gws auth status`.
+- **Still failing right after re-authenticating (`insufficient authentication scopes`, or a stale
+  `invalid_grant`):** `gws` caches the short-lived access token (`~/.config/gws/token_cache.json`)
+  separately from the stored credential. If you re-auth to *add or change a scope* (e.g. granting
+  `calendar`), `gws` can keep serving the old cached access token, so calls still fail even though
+  `gws auth status` already shows the new scope. Clear the cache and let `gws` re-mint it from your
+  refresh token on the next run — no re-login needed:
+  ```bash
+  rm ~/.config/gws/token_cache.json
+  ```
 - **Stray `download.html`:** `gws` writes a file for empty/204 responses (like deletes) to its
   working directory. The script runs `gws` with cwd pinned to the project folder, so that file
   lands here (gitignored) instead of failing under launchd (whose cwd is `/`). Note: `gws`
