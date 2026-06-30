@@ -60,6 +60,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var detailLine = ""
     var lastError = ""
     var authExpired = false
+    // Set when the user clicks "Confirm re-auth" after re-authenticating. The app can't observe a
+    // re-auth on its own (it only reads the last run's state.json), so this is the user's explicit
+    // signal that the sign-in is fixed — it re-enables "Sync now"/"Refresh" while still expired.
+    // Auto-clears once a run actually succeeds (authExpired goes false) so the next expiry re-locks.
+    var reauthConfirmed = false
     var transientLine: String?  // shown once (e.g. "Copied"), cleared on next refresh
 
     // OAuth consent screen for the gws project (where you publish the app to stop the
@@ -132,6 +137,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let lowerErr = lastError.lowercased()
         authExpired = status == "abort"
             && (lowerErr.contains("invalid_grant") || lowerErr.contains("expired or revoked"))
+        // Once a run succeeds the expiry is gone, so drop any prior confirmation; a fresh expiry
+        // then starts locked again and requires a new "Confirm re-auth".
+        if !authExpired { reauthConfirmed = false }
 
         if status == "abort" {
             health = .error
@@ -231,24 +239,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(.separator())
             let copy = NSMenuItem(title: "Copy re-auth command", action: #selector(copyReauthCommand), keyEquivalent: "c")
             copy.target = self; menu.addItem(copy)
+            // After running the copied command in Terminal, the user clicks this to tell the app the
+            // sign-in is fixed, which re-enables "Sync now"/"Refresh" below. Once confirmed, swap it
+            // for a non-actionable acknowledgement so the menu reflects the new state.
+            if reauthConfirmed {
+                let done = NSMenuItem(title: "   ✅ Re-auth confirmed — use Sync now", action: nil, keyEquivalent: "")
+                done.isEnabled = false; menu.addItem(done)
+            } else {
+                let confirm = NSMenuItem(title: "Confirm re-auth", action: #selector(confirmReauth), keyEquivalent: "")
+                confirm.target = self; menu.addItem(confirm)
+            }
             let fix = NSMenuItem(title: "How to fix…", action: #selector(showFixInstructions), keyEquivalent: "")
             fix.target = self; menu.addItem(fix)
         }
 
         menu.addItem(.separator())
 
-        // While sign-in is expired, syncing and refreshing are dead ends: "Sync now" would just
-        // kickstart launchd into the same auth abort, and there's nothing new to re-read until the
-        // user re-auths. Grey both out (the 20s timer still recovers the menu once a sync succeeds,
-        // re-enabling them automatically). "Copy re-auth command" / "How to fix…" stay active.
+        // While sign-in is expired, "Sync now"/"Refresh" are dead ends — "Sync now" would just
+        // kickstart launchd into the same auth abort — so they stay greyed out by default. The app
+        // can't observe a re-auth on its own (it only reads the last run's state.json), so once the
+        // user has re-authenticated they click "Confirm re-auth" above to unlock these controls;
+        // "Sync now" then kickstarts launchd and recovers the menu immediately instead of waiting
+        // for the next scheduled tick. reauthConfirmed auto-clears on the next successful run.
+        let recoveryLocked = authExpired && !reauthConfirmed
         let sync = NSMenuItem(title: "Sync now", action: #selector(syncNow), keyEquivalent: "s")
-        sync.target = self; sync.isEnabled = !authExpired; menu.addItem(sync)
+        sync.target = self; sync.isEnabled = !recoveryLocked; menu.addItem(sync)
 
         let logs = NSMenuItem(title: "Open logs", action: #selector(openLogs), keyEquivalent: "l")
         logs.target = self; menu.addItem(logs)
 
         let ref = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
-        ref.target = self; ref.isEnabled = !authExpired; menu.addItem(ref)
+        ref.target = self; ref.isEnabled = !recoveryLocked; menu.addItem(ref)
 
         menu.addItem(.separator())
 
@@ -281,6 +302,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.transientLine = nil
             self.rebuildMenu()
         }
+    }
+
+    @objc func confirmReauth() {
+        // User asserts they've re-authenticated. Unlock the recovery controls and rebuild; we do NOT
+        // call refresh() here — refresh re-reads the (still-abort) state.json but leaves
+        // reauthConfirmed alone while authExpired, so the unlock persists until a run succeeds.
+        reauthConfirmed = true
+        rebuildMenu()
     }
 
     @objc func showFixInstructions() {
